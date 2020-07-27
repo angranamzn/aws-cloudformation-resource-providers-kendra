@@ -9,6 +9,7 @@ import software.amazon.awssdk.services.kendra.KendraClient;
 import software.amazon.awssdk.services.kendra.model.ConflictException;
 import software.amazon.awssdk.services.kendra.model.DescribeIndexRequest;
 import software.amazon.awssdk.services.kendra.model.DescribeIndexResponse;
+import software.amazon.awssdk.services.kendra.model.DocumentMetadataConfiguration;
 import software.amazon.awssdk.services.kendra.model.IndexEdition;
 import software.amazon.awssdk.services.kendra.model.IndexStatus;
 import software.amazon.awssdk.services.kendra.model.ListTagsForResourceRequest;
@@ -127,7 +128,7 @@ public class UpdateHandlerTest extends AbstractTestBase {
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
-        verify(proxyClient.client(), times(2)).describeIndex(any(DescribeIndexRequest.class));
+        verify(proxyClient.client(), times(3)).describeIndex(any(DescribeIndexRequest.class));
         verify(proxyClient.client(), times(2)).listTagsForResource(any(ListTagsForResourceRequest.class));
     }
 
@@ -153,7 +154,11 @@ public class UpdateHandlerTest extends AbstractTestBase {
                 .thenReturn(UpdateIndexResponse.builder().build());
         IndexEdition indexEdition = IndexEdition.ENTERPRISE_EDITION;
         when(proxyClient.client().describeIndex(any(DescribeIndexRequest.class)))
-                .thenReturn(DescribeIndexResponse.builder()
+                .thenReturn(
+                        DescribeIndexResponse.builder()
+                                .id(id)
+                                .build(),
+                        DescribeIndexResponse.builder()
                                 .id(id)
                                 .name(name)
                                 .roleArn(roleArn)
@@ -191,7 +196,7 @@ public class UpdateHandlerTest extends AbstractTestBase {
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
-        verify(proxyClient.client(), times(3)).describeIndex(any(DescribeIndexRequest.class));
+        verify(proxyClient.client(), times(4)).describeIndex(any(DescribeIndexRequest.class));
         verify(proxyClient.client(), times(2)).listTagsForResource(any(ListTagsForResourceRequest.class));
     }
 
@@ -202,8 +207,10 @@ public class UpdateHandlerTest extends AbstractTestBase {
         when(proxyClient.client().updateIndex(any(UpdateIndexRequest.class)))
                 .thenThrow(ValidationException.builder().build());
 
+        String id = "id";
         final ResourceModel model = ResourceModel
                 .builder()
+                .id(id)
                 .name("name")
                 .roleArn("role")
                 .edition(IndexEdition.ENTERPRISE_EDITION.toString())
@@ -213,11 +220,17 @@ public class UpdateHandlerTest extends AbstractTestBase {
                 .desiredResourceState(model)
                 .build();
 
+        when(proxyClient.client().describeIndex(any(DescribeIndexRequest.class)))
+                .thenReturn(DescribeIndexResponse.builder()
+                        .id(id)
+                        .build());
+
         assertThrows(CfnInvalidRequestException.class, () -> {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger);
         });
 
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
+        verify(proxyClient.client(), times(1)).describeIndex(any(DescribeIndexRequest.class));
     }
 
     @Test
@@ -227,8 +240,10 @@ public class UpdateHandlerTest extends AbstractTestBase {
         when(proxyClient.client().updateIndex(any(UpdateIndexRequest.class)))
                 .thenThrow(ConflictException.builder().build());
 
+        String id = "id";
         final ResourceModel model = ResourceModel
                 .builder()
+                .id(id)
                 .name("name")
                 .roleArn("role")
                 .edition(IndexEdition.ENTERPRISE_EDITION.toString())
@@ -238,10 +253,17 @@ public class UpdateHandlerTest extends AbstractTestBase {
                 .desiredResourceState(model)
                 .build();
 
+        when(proxyClient.client().describeIndex(any(DescribeIndexRequest.class)))
+                .thenReturn(DescribeIndexResponse.builder()
+                        .id(id)
+                        .build());
+
         assertThrows(CfnResourceConflictException.class, () -> {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger);
         });
+
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
+        verify(proxyClient.client(), times(1)).describeIndex(any(DescribeIndexRequest.class));
     }
 
     @Test
@@ -308,7 +330,7 @@ public class UpdateHandlerTest extends AbstractTestBase {
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
-        verify(proxyClient.client(), times(2)).describeIndex(any(DescribeIndexRequest.class));
+        verify(proxyClient.client(), times(3)).describeIndex(any(DescribeIndexRequest.class));
         verify(proxyClient.client(), times(2)).listTagsForResource(any(ListTagsForResourceRequest.class));
         verify(proxyClient.client(), times(1)).tagResource(any(TagResourceRequest.class));
     }
@@ -374,7 +396,7 @@ public class UpdateHandlerTest extends AbstractTestBase {
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
-        verify(proxyClient.client(), times(2)).describeIndex(any(DescribeIndexRequest.class));
+        verify(proxyClient.client(), times(3)).describeIndex(any(DescribeIndexRequest.class));
         verify(proxyClient.client(), times(2)).listTagsForResource(any(ListTagsForResourceRequest.class));
         verify(proxyClient.client(), times(1)).untagResource(any(UntagResourceRequest.class));
     }
@@ -450,7 +472,7 @@ public class UpdateHandlerTest extends AbstractTestBase {
         assertThat(response.getErrorCode()).isNull();
 
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
-        verify(proxyClient.client(), times(2)).describeIndex(any(DescribeIndexRequest.class));
+        verify(proxyClient.client(), times(3)).describeIndex(any(DescribeIndexRequest.class));
         verify(proxyClient.client(), times(2)).listTagsForResource(any(ListTagsForResourceRequest.class));
         verify(proxyClient.client(), times(1)).tagResource(any(TagResourceRequest.class));
         verify(proxyClient.client(), times(1)).untagResource(any(UntagResourceRequest.class));
@@ -500,7 +522,7 @@ public class UpdateHandlerTest extends AbstractTestBase {
         });
 
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
-        verify(proxyClient.client(), times(1)).describeIndex(any(DescribeIndexRequest.class));
+        verify(proxyClient.client(), times(2)).describeIndex(any(DescribeIndexRequest.class));
     }
 
     @Test
@@ -549,7 +571,7 @@ public class UpdateHandlerTest extends AbstractTestBase {
         });
 
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
-        verify(proxyClient.client(), times(1)).describeIndex(any(DescribeIndexRequest.class));
+        verify(proxyClient.client(), times(2)).describeIndex(any(DescribeIndexRequest.class));
     }
 
     @Test
@@ -559,8 +581,10 @@ public class UpdateHandlerTest extends AbstractTestBase {
         when(proxyClient.client().updateIndex(any(UpdateIndexRequest.class)))
                 .thenThrow(ServiceQuotaExceededException.builder().build());
 
+        String id = "id";
         final ResourceModel model = ResourceModel
                 .builder()
+                .id(id)
                 .name("name")
                 .roleArn("role")
                 .edition(IndexEdition.ENTERPRISE_EDITION.toString())
@@ -570,9 +594,51 @@ public class UpdateHandlerTest extends AbstractTestBase {
                 .desiredResourceState(model)
                 .build();
 
+        when(proxyClient.client().describeIndex(any(DescribeIndexRequest.class)))
+                .thenReturn(DescribeIndexResponse.builder()
+                        .id(id)
+                        .build());
+
         assertThrows(CfnServiceLimitExceededException.class, () -> {
             handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger);
         });
+
         verify(proxyClient.client(), times(1)).updateIndex(any(UpdateIndexRequest.class));
+        verify(proxyClient.client(), times(1)).describeIndex(any(DescribeIndexRequest.class));
+    }
+
+    @Test
+    public void handleRequest_FailWith_InvalidRequest_RemovedMetadata() {
+        final UpdateHandler handler = new UpdateHandler(testIndexArnBuilder);
+
+        String id = "id";
+        final ResourceModel model = ResourceModel
+                .builder()
+                .id(id)
+                .name("name")
+                .roleArn("role")
+                .edition(IndexEdition.ENTERPRISE_EDITION.toString())
+                .build();
+
+        final ResourceHandlerRequest<ResourceModel> request = ResourceHandlerRequest.<ResourceModel>builder()
+                .desiredResourceState(model)
+                .build();
+
+        when(proxyClient.client().describeIndex(any(DescribeIndexRequest.class)))
+                .thenReturn(DescribeIndexResponse.builder()
+                        .id(id)
+                        .documentMetadataConfigurations(
+                                Arrays.asList(DocumentMetadataConfiguration
+                                        .builder()
+                                        .name("name")
+                                        .build())
+                        )
+                        .build());
+
+        assertThrows(CfnInvalidRequestException.class, () -> {
+            handler.handleRequest(proxy, request, new CallbackContext(), proxyClient, logger);
+        });
+
+        verify(proxyClient.client(), times(1)).describeIndex(any(DescribeIndexRequest.class));
     }
 }

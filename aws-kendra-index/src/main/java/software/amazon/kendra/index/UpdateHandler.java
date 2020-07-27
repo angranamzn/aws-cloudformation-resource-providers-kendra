@@ -24,6 +24,7 @@ import software.amazon.cloudformation.proxy.ProgressEvent;
 import software.amazon.cloudformation.proxy.ProxyClient;
 import software.amazon.cloudformation.proxy.ResourceHandlerRequest;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -60,6 +61,18 @@ public class UpdateHandler extends BaseHandlerStd {
         // https://github.com/aws-cloudformation/cloudformation-cli-java-plugin/blob/master/src/main/java/software/amazon/cloudformation/proxy/CallChain.java
 
         return ProgressEvent.progress(model, callbackContext)
+                .then(progress -> {
+                    DescribeIndexRequest describeIndexRequest = DescribeIndexRequest.builder()
+                            .id(model.getId())
+                            .build();
+                    DescribeIndexResponse describeIndexResponse = proxyClient.injectCredentialsAndInvokeV2(describeIndexRequest,
+                            proxyClient.client()::describeIndex);
+                    if (hasRemovedDocumentMetadataFromCFTemplate(describeIndexResponse, progress.getResourceModel())) {
+                        throw new CfnInvalidRequestException(ResourceModel.TYPE_NAME +
+                                "Document metadata configurations can't be removed");
+                    }
+                    return progress;
+                })
                 // STEP 1 [first update/stabilize progress chain - required for resource update]
                 .then(progress ->
                         // STEP 1.0 [initialize a proxy context]
@@ -92,6 +105,24 @@ public class UpdateHandler extends BaseHandlerStd {
                 proxyClient.client()::describeIndex);
         IndexStatus indexStatus = describeIndexResponse.status();
         return indexStatus.equals(IndexStatus.ACTIVE);
+    }
+
+    private boolean hasRemovedDocumentMetadataFromCFTemplate(DescribeIndexResponse describeIndexResponse, ResourceModel resourceModel) {
+        List<String> currentIndexFields = new ArrayList<>();
+        if (describeIndexResponse.documentMetadataConfigurations() != null) {
+            currentIndexFields = describeIndexResponse.documentMetadataConfigurations().stream().map(x -> x.name()).collect(Collectors.toList());
+        }
+        Set<String> requestedIndexFields = new HashSet<>();
+        if (resourceModel.getDocumentMetadataConfigurations() != null) {
+            requestedIndexFields = resourceModel.getDocumentMetadataConfigurations()
+                    .stream().map(x -> x.getName()).collect(Collectors.toSet());
+        }
+        for (String currentIndexField : currentIndexFields) {
+            if (!requestedIndexFields.contains(currentIndexField)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
